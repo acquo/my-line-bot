@@ -13,6 +13,25 @@
 	},
 	"observability": {
 		"enabled": true
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "line-bot-db",
+			"database_id": "0a19995e-9cdb-4c78-a62b-1a5f0b43ee34"
+		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "KV",
+			"id": "bb6912e65c594293bca2298e86831155"
+		}
+	],
+	"ai": {
+		"binding": "AI"
+	},
+	"vars": {
+		"ENVIRONMENT": "development"
 	}
 	/**
 	 * Smart Placement

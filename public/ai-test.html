@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 功能測試 - LINE Bot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div x-data="aiTestApp()" x-init="init()" class="max-w-4xl mx-auto py-6 px-4">
+        <!-- 標題 -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">AI 功能測試</h1>
+            <p class="text-gray-600">測試 LINE Bot 的 AI 回應功能</p>
+        </div>
+
+        <!-- 導航 -->
+        <div class="mb-6">
+            <nav class="flex space-x-4">
+                <button @click="activeTab = 'chat'" 
+                        :class="activeTab === 'chat' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700'"
+                        class="px-4 py-2 rounded-lg border">
+                    對話測試
+                </button>
+                <button @click="activeTab = 'models'" 
+                        :class="activeTab === 'models' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700'"
+                        class="px-4 py-2 rounded-lg border">
+                    模型測試
+                </button>
+                <button @click="activeTab = 'webhook'" 
+                        :class="activeTab === 'webhook' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700'"
+                        class="px-4 py-2 rounded-lg border">
+                    Webhook 模擬
+                </button>
+                <a href="/" class="px-4 py-2 rounded-lg border bg-gray-100 text-gray-700">
+                    返回首頁
+                </a>
+            </nav>
+        </div>
+
+        <!-- 對話測試 -->
+        <div x-show="activeTab === 'chat'" class="space-y-6">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">AI 對話測試</h2>
+                
+                <form @submit.prevent="sendMessage()" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            測試訊息
+                        </label>
+                        <textarea x-model="chatMessage" 
+                                  rows="3"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="輸入要測試的訊息..."></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            用戶 ID (可選)
+                        </label>
+                        <input type="text" x-model="userId" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="test-user">
+                    </div>
+                    
+                    <button type="submit" 
+                            :disabled="!chatMessage || chatLoading"
+                            class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-md">
+                        <span x-show="!chatLoading">發送測試</span>
+                        <span x-show="chatLoading">處理中...</span>
+                    </button>
+                </form>
+
+                <!-- 對話結果 -->
+                <div x-show="chatResult" class="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <h3 class="font-medium mb-2">AI 回應:</h3>
+                    <div class="bg-white p-3 rounded border">
+                        <p x-text="chatResult?.aiResponse" class="whitespace-pre-wrap"></p>
+                    </div>
+                    <div class="mt-2 text-sm text-gray-600">
+                        <p>模型: <span x-text="chatResult?.settings?.model"></span></p>
+                        <p>對話歷史長度: <span x-text="chatResult?.settings?.historyLength"></span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 模型測試 -->
+        <div x-show="activeTab === 'models'" class="space-y-6">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">AI 模型可用性測試</h2>
+                
+                <button @click="testModels()" 
+                        :disabled="modelsLoading"
+                        class="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-2 rounded-md mb-4">
+                    <span x-show="!modelsLoading">測試所有模型</span>
+                    <span x-show="modelsLoading">測試中...</span>
+                </button>
+
+                <!-- 模型測試結果 -->
+                <div x-show="modelsResult" class="space-y-3">
+                    <template x-for="model in modelsResult?.models" :key="model.model">
+                        <div class="p-4 border rounded-lg">
+                            <div class="flex items-center justify-between">
+                                <h3 class="font-medium" x-text="model.model"></h3>
+                                <span :class="model.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                                      class="px-2 py-1 rounded-full text-xs font-medium">
+                                    <span x-text="model.available ? '可用' : '不可用'"></span>
+                                </span>
+                            </div>
+                            <div x-show="model.available" class="mt-2 text-sm text-gray-600">
+                                <p>測試回應: <span x-text="model.response"></span></p>
+                            </div>
+                            <div x-show="!model.available" class="mt-2 text-sm text-red-600">
+                                <p>錯誤: <span x-text="model.error"></span></p>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Webhook 模擬 -->
+        <div x-show="activeTab === 'webhook'" class="space-y-6">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">LINE Webhook 模擬測試</h2>
+                
+                <form @submit.prevent="simulateWebhook()" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            模擬訊息
+                        </label>
+                        <textarea x-model="webhookMessage" 
+                                  rows="3"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="輸入模擬的 LINE 訊息..."></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            模擬用戶 ID
+                        </label>
+                        <input type="text" x-model="webhookUserId" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="test-user-webhook">
+                    </div>
+                    
+                    <button type="submit" 
+                            :disabled="!webhookMessage || webhookLoading"
+                            class="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-2 rounded-md">
+                        <span x-show="!webhookLoading">模擬 Webhook</span>
+                        <span x-show="webhookLoading">處理中...</span>
+                    </button>
+                </form>
+
+                <!-- Webhook 結果 -->
+                <div x-show="webhookResult" class="mt-6 space-y-4">
+                    <div class="p-4 bg-blue-50 rounded-lg">
+                        <h3 class="font-medium mb-2">模擬的 Webhook 事件:</h3>
+                        <pre class="text-xs bg-white p-2 rounded overflow-x-auto" x-text="JSON.stringify(webhookResult?.simulation?.webhookEvent, null, 2)"></pre>
+                    </div>
+                    
+                    <div class="p-4 bg-green-50 rounded-lg">
+                        <h3 class="font-medium mb-2">AI 回應:</h3>
+                        <div class="bg-white p-3 rounded border">
+                            <p x-text="webhookResult?.simulation?.aiResponse" class="whitespace-pre-wrap"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 錯誤訊息 -->
+        <div x-show="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <span x-text="error"></span>
+        </div>
+    </div>
+
+    <script>
+        function aiTestApp() {
+            return {
+                activeTab: 'chat',
+                error: '',
+
+                // 對話測試
+                chatMessage: '',
+                userId: 'test-user',
+                chatLoading: false,
+                chatResult: null,
+
+                // 模型測試
+                modelsLoading: false,
+                modelsResult: null,
+
+                // Webhook 模擬
+                webhookMessage: '',
+                webhookUserId: 'test-user-webhook',
+                webhookLoading: false,
+                webhookResult: null,
+
+                init() {
+                    // 初始化時可以執行一些設定
+                    console.log('AI 測試頁面已載入');
+                },
+
+                async sendMessage() {
+                    if (!this.chatMessage.trim()) return;
+
+                    this.chatLoading = true;
+                    this.error = '';
+                    this.chatResult = null;
+
+                    try {
+                        const response = await fetch('/ai-test/chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                message: this.chatMessage,
+                                userId: this.userId || 'test-user'
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            this.chatResult = data;
+                        } else {
+                            this.error = data.error || '對話測試失敗';
+                        }
+                    } catch (error) {
+                        this.error = '發送訊息時發生錯誤: ' + error.message;
+                    } finally {
+                        this.chatLoading = false;
+                    }
+                },
+
+                async testModels() {
+                    this.modelsLoading = true;
+                    this.error = '';
+                    this.modelsResult = null;
+
+                    try {
+                        const response = await fetch('/ai-test/models');
+                        const data = await response.json();
+
+                        if (data.success) {
+                            this.modelsResult = data;
+                        } else {
+                            this.error = data.error || '模型測試失敗';
+                        }
+                    } catch (error) {
+                        this.error = '模型測試時發生錯誤: ' + error.message;
+                    } finally {
+                        this.modelsLoading = false;
+                    }
+                },
+
+                async simulateWebhook() {
+                    if (!this.webhookMessage.trim()) return;
+
+                    this.webhookLoading = true;
+                    this.error = '';
+                    this.webhookResult = null;
+
+                    try {
+                        const response = await fetch('/ai-test/webhook-simulation', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                message: this.webhookMessage,
+                                userId: this.webhookUserId || 'test-user-webhook'
+                            })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            this.webhookResult = data;
+                        } else {
+                            this.error = data.error || 'Webhook 模擬失敗';
+                        }
+                    } catch (error) {
+                        this.error = 'Webhook 模擬時發生錯誤: ' + error.message;
+                    } finally {
+                        this.webhookLoading = false;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
