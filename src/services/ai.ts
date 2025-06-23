@@ -14,6 +14,18 @@ export class AIService {
   }
 
   /**
+   * 更新 MCP 配置
+   */
+  updateMCPConfig(settings: GlobalSettings): void {
+    this.mcpService.updateConfig({
+      serverUrl: settings.mcpServerUrl,
+      timeout: settings.mcpTimeout,
+      retryAttempts: settings.mcpRetryAttempts,
+      enableLogging: true
+    });
+  }
+
+  /**
    * 生成 AI 回應（整合 MCP 上下文）
    */
   async generateResponse(
@@ -23,7 +35,7 @@ export class AIService {
   ): Promise<string> {
     try {
       // 嘗試從 MCP Server 獲取相關上下文
-      const mcpContext = await this.getMCPContext(userMessage);
+      const mcpContext = await this.getMCPContext(userMessage, settings);
 
       // 建構包含 MCP 上下文的訊息
       const messages = this.buildMessages(userMessage, conversationHistory, settings, mcpContext);
@@ -51,8 +63,16 @@ export class AIService {
   /**
    * 從 MCP Server 獲取相關上下文
    */
-  private async getMCPContext(userMessage: string): Promise<MCPContext[]> {
+  private async getMCPContext(userMessage: string, settings: GlobalSettings): Promise<MCPContext[]> {
     try {
+      // 檢查是否啟用 MCP
+      if (!settings.mcpEnabled) {
+        return [];
+      }
+
+      // 更新 MCP 配置
+      this.updateMCPConfig(settings);
+
       // 嘗試連接到 MCP Server
       if (!this.mcpService.getConnectionStatus().isConnected) {
         await this.mcpService.connect();

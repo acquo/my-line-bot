@@ -21,11 +21,11 @@ export class MCPService {
 
   constructor(config: Partial<MCPServiceConfig> = {}) {
     this.config = {
-      serverUrl: 'https://kjsgmiyoejvu.ap-northeast-1.clawcloudrun.com/sse',
-      timeout: 30000, // 30 秒
-      retryAttempts: 3,
-      retryDelay: 1000, // 1 秒
-      enableLogging: true,
+      serverUrl: config.serverUrl || 'https://kjsgmiyoejvu.ap-northeast-1.clawcloudrun.com/sse',
+      timeout: config.timeout || 30000, // 30 秒
+      retryAttempts: config.retryAttempts || 3,
+      retryDelay: config.retryDelay || 1000, // 1 秒
+      enableLogging: config.enableLogging !== undefined ? config.enableLogging : true,
       ...config
     };
 
@@ -348,6 +348,33 @@ export class MCPService {
     this.stats.averageResponseTime = 
       (this.stats.averageResponseTime * (this.stats.totalMessages - 1) + responseTime) / this.stats.totalMessages;
     this.stats.lastActivity = new Date();
+  }
+
+  /**
+   * 更新 MCP 服務配置
+   */
+  updateConfig(newConfig: Partial<MCPServiceConfig>): void {
+    // 如果 URL 改變，需要斷開現有連接
+    const urlChanged = newConfig.serverUrl && newConfig.serverUrl !== this.config.serverUrl;
+
+    if (urlChanged && this.connectionStatus.isConnected) {
+      this.disconnect();
+    }
+
+    // 更新配置
+    this.config = {
+      ...this.config,
+      ...newConfig
+    };
+
+    this.log('info', 'MCP 配置已更新', { newConfig, urlChanged });
+  }
+
+  /**
+   * 獲取當前配置
+   */
+  getConfig(): MCPServiceConfig {
+    return { ...this.config };
   }
 
   /**

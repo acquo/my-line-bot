@@ -5,6 +5,11 @@ export interface GlobalSettings {
   systemPrompt: string;
   maxHistoryLength: number;
   adminPassword: string; // hashed
+  // MCP 相關設定
+  mcpServerUrl: string;
+  mcpEnabled: boolean;
+  mcpTimeout: number;
+  mcpRetryAttempts: number;
 }
 
 export interface AdminLoginRequest {
@@ -21,6 +26,11 @@ export interface UpdateSettingsRequest {
   defaultModel?: string;
   systemPrompt?: string;
   maxHistoryLength?: number;
+  // MCP 相關設定
+  mcpServerUrl?: string;
+  mcpEnabled?: boolean;
+  mcpTimeout?: number;
+  mcpRetryAttempts?: number;
 }
 
 // 支援的 AI 模型
@@ -36,7 +46,12 @@ export type SupportedModel = typeof SUPPORTED_MODELS[keyof typeof SUPPORTED_MODE
 export const DEFAULT_SETTINGS: Omit<GlobalSettings, 'adminPassword'> = {
   defaultModel: SUPPORTED_MODELS['llama-3.1-8b'],
   systemPrompt: '你是一個友善且樂於助人的 AI 助手。請用繁體中文回應，保持禮貌和專業。',
-  maxHistoryLength: 10
+  maxHistoryLength: 10,
+  // MCP 預設設定
+  mcpServerUrl: 'https://kjsgmiyoejvu.ap-northeast-1.clawcloudrun.com/sse',
+  mcpEnabled: true,
+  mcpTimeout: 30000,
+  mcpRetryAttempts: 3
 };
 
 // KV 儲存鍵

@@ -239,5 +239,103 @@ export function createAdminHandler() {
     }
   });
 
+  // GET /admin/mcp/config - 獲取 MCP 配置
+  app.get('/mcp/config', authMiddleware(), async (c) => {
+    try {
+      const { KV } = c.env;
+      const storageService = new StorageService(KV);
+
+      const settings = await storageService.getGlobalSettings();
+
+      return c.json({
+        success: true,
+        config: {
+          mcpServerUrl: settings.mcpServerUrl,
+          mcpEnabled: settings.mcpEnabled,
+          mcpTimeout: settings.mcpTimeout,
+          mcpRetryAttempts: settings.mcpRetryAttempts
+        }
+      });
+
+    } catch (error) {
+      console.error('獲取 MCP 配置失敗:', error);
+      return c.json({
+        success: false,
+        error: '無法獲取 MCP 配置'
+      }, 500);
+    }
+  });
+
+  // POST /admin/mcp/config - 更新 MCP 配置
+  app.post('/mcp/config', authMiddleware(), async (c) => {
+    try {
+      const { KV, AI } = c.env;
+      const storageService = new StorageService(KV);
+      const aiService = new AIService(AI);
+
+      const { mcpServerUrl, mcpEnabled, mcpTimeout, mcpRetryAttempts } = await c.req.json();
+
+      // 驗證輸入
+      if (mcpServerUrl && typeof mcpServerUrl !== 'string') {
+        return c.json({
+          success: false,
+          error: 'MCP Server URL 必須是字串'
+        }, 400);
+      }
+
+      if (mcpEnabled !== undefined && typeof mcpEnabled !== 'boolean') {
+        return c.json({
+          success: false,
+          error: 'MCP 啟用狀態必須是布林值'
+        }, 400);
+      }
+
+      if (mcpTimeout && (typeof mcpTimeout !== 'number' || mcpTimeout < 1000 || mcpTimeout > 60000)) {
+        return c.json({
+          success: false,
+          error: 'MCP 超時時間必須在 1000-60000 毫秒之間'
+        }, 400);
+      }
+
+      if (mcpRetryAttempts && (typeof mcpRetryAttempts !== 'number' || mcpRetryAttempts < 0 || mcpRetryAttempts > 10)) {
+        return c.json({
+          success: false,
+          error: 'MCP 重試次數必須在 0-10 之間'
+        }, 400);
+      }
+
+      // 更新設定
+      const updateData: any = {};
+      if (mcpServerUrl !== undefined) updateData.mcpServerUrl = mcpServerUrl;
+      if (mcpEnabled !== undefined) updateData.mcpEnabled = mcpEnabled;
+      if (mcpTimeout !== undefined) updateData.mcpTimeout = mcpTimeout;
+      if (mcpRetryAttempts !== undefined) updateData.mcpRetryAttempts = mcpRetryAttempts;
+
+      await storageService.updateSettings(updateData);
+
+      // 更新 AI 服務的 MCP 配置
+      const newSettings = await storageService.getGlobalSettings();
+      aiService.updateMCPConfig(newSettings);
+
+      return c.json({
+        success: true,
+        message: 'MCP 配置更新成功',
+        config: {
+          mcpServerUrl: newSettings.mcpServerUrl,
+          mcpEnabled: newSettings.mcpEnabled,
+          mcpTimeout: newSettings.mcpTimeout,
+          mcpRetryAttempts: newSettings.mcpRetryAttempts
+        }
+      });
+
+    } catch (error) {
+      console.error('更新 MCP 配置失敗:', error);
+      return c.json({
+        success: false,
+        error: '無法更新 MCP 配置'
+      }, 500);
+    }
+  });
+
   return app;
 }

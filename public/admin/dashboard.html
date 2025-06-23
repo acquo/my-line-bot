@@ -96,12 +96,50 @@
                             <label class="block text-sm font-medium text-gray-700 mb-2">
                                 對話歷史長度
                             </label>
-                            <input type="number" 
-                                   x-model="settings.maxHistoryLength" 
-                                   min="1" 
+                            <input type="number"
+                                   x-model="settings.maxHistoryLength"
+                                   min="1"
                                    max="50"
                                    class="mt-1 block w-32 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                             <p class="mt-1 text-sm text-gray-500">AI 記住的對話輪數 (1-50)</p>
+                        </div>
+
+                        <!-- MCP 設定區塊 -->
+                        <div class="border-t border-gray-200 pt-6">
+                            <h4 class="text-lg font-medium text-gray-900 mb-4">MCP (Model Context Protocol) 設定</h4>
+
+                            <!-- MCP 啟用開關 -->
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-700">啟用 MCP</label>
+                                    <p class="text-sm text-gray-500">是否啟用 Model Context Protocol 功能</p>
+                                </div>
+                                <button type="button"
+                                        @click="settings.mcpEnabled = !settings.mcpEnabled"
+                                        :class="settings.mcpEnabled ? 'bg-indigo-600' : 'bg-gray-200'"
+                                        class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                    <span :class="settings.mcpEnabled ? 'translate-x-5' : 'translate-x-0'"
+                                          class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                                </button>
+                            </div>
+
+                            <!-- MCP Server URL -->
+                            <div class="mb-4">
+                                <label for="mcpServerUrl" class="block text-sm font-medium text-gray-700 mb-2">MCP Server URL</label>
+                                <input type="url"
+                                       id="mcpServerUrl"
+                                       x-model="settings.mcpServerUrl"
+                                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                       placeholder="https://example.com/sse">
+                                <p class="mt-1 text-sm text-gray-500">MCP Server 的 SSE 端點 URL</p>
+                            </div>
+
+                            <div class="mt-4 p-3 bg-blue-50 rounded-md">
+                                <p class="text-sm text-blue-700">
+                                    <strong>提示：</strong> 更詳細的 MCP 監控和測試功能請前往
+                                    <a href="/admin/mcp.html" class="underline hover:text-blue-800">MCP 管理頁面</a>
+                                </p>
+                            </div>
                         </div>
 
                         <!-- 儲存按鈕 -->
@@ -161,7 +199,11 @@
                 settings: {
                     defaultModel: '',
                     systemPrompt: '',
-                    maxHistoryLength: 10
+                    maxHistoryLength: 10,
+                    mcpServerUrl: '',
+                    mcpEnabled: true,
+                    mcpTimeout: 30000,
+                    mcpRetryAttempts: 3
                 },
                 availableModels: {},
                 newPassword: '',

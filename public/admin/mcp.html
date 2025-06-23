@@ -59,8 +59,84 @@
             <div class="mb-6">
                 <h2 class="text-2xl font-bold text-gray-900">MCP Server 監控</h2>
                 <p class="mt-1 text-sm text-gray-600">
-                    監控 Model Context Protocol Server 的連接狀態和統計資訊
+                    監控和設定 Model Context Protocol Server 的連接狀態和配置
                 </p>
+            </div>
+
+            <!-- MCP 設定表單 -->
+            <div class="bg-white shadow overflow-hidden sm:rounded-md mb-6">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">MCP 設定</h3>
+
+                    <form @submit.prevent="updateConfig()" class="space-y-4">
+                        <!-- MCP 啟用開關 -->
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <label class="text-sm font-medium text-gray-700">啟用 MCP</label>
+                                <p class="text-sm text-gray-500">是否啟用 Model Context Protocol 功能</p>
+                            </div>
+                            <button type="button"
+                                    @click="config.mcpEnabled = !config.mcpEnabled"
+                                    :class="config.mcpEnabled ? 'bg-indigo-600' : 'bg-gray-200'"
+                                    class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                <span :class="config.mcpEnabled ? 'translate-x-5' : 'translate-x-0'"
+                                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                            </button>
+                        </div>
+
+                        <!-- MCP Server URL -->
+                        <div>
+                            <label for="mcpServerUrl" class="block text-sm font-medium text-gray-700">MCP Server URL</label>
+                            <input type="url"
+                                   id="mcpServerUrl"
+                                   x-model="config.mcpServerUrl"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                   placeholder="https://example.com/sse">
+                            <p class="mt-1 text-sm text-gray-500">MCP Server 的 SSE 端點 URL</p>
+                        </div>
+
+                        <!-- 超時時間 -->
+                        <div>
+                            <label for="mcpTimeout" class="block text-sm font-medium text-gray-700">超時時間 (毫秒)</label>
+                            <input type="number"
+                                   id="mcpTimeout"
+                                   x-model.number="config.mcpTimeout"
+                                   min="1000"
+                                   max="60000"
+                                   step="1000"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                            <p class="mt-1 text-sm text-gray-500">連接超時時間，範圍 1000-60000 毫秒</p>
+                        </div>
+
+                        <!-- 重試次數 -->
+                        <div>
+                            <label for="mcpRetryAttempts" class="block text-sm font-medium text-gray-700">重試次數</label>
+                            <input type="number"
+                                   id="mcpRetryAttempts"
+                                   x-model.number="config.mcpRetryAttempts"
+                                   min="0"
+                                   max="10"
+                                   step="1"
+                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                            <p class="mt-1 text-sm text-gray-500">連接失敗時的重試次數，範圍 0-10</p>
+                        </div>
+
+                        <!-- 提交按鈕 -->
+                        <div class="flex justify-end space-x-3">
+                            <button type="button"
+                                    @click="loadConfig()"
+                                    class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded text-sm">
+                                重置
+                            </button>
+                            <button type="submit"
+                                    :disabled="updating"
+                                    class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-4 py-2 rounded text-sm">
+                                <span x-show="!updating">儲存設定</span>
+                                <span x-show="updating">儲存中...</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
 
             <!-- 連接狀態卡片 -->
@@ -200,11 +276,18 @@
                 refreshing: false,
                 connecting: false,
                 testing: false,
+                updating: false,
                 error: '',
                 success: '',
                 status: {},
                 stats: {},
                 testResult: null,
+                config: {
+                    mcpServerUrl: '',
+                    mcpEnabled: true,
+                    mcpTimeout: 30000,
+                    mcpRetryAttempts: 3
+                },
 
                 async init() {
                     // 檢查認證
@@ -227,8 +310,9 @@
                             throw new Error('Token 無效');
                         }
 
-                        // 載入 MCP 狀態
+                        // 載入 MCP 狀態和配置
                         await this.loadStatus();
+                        await this.loadConfig();
                     } catch (error) {
                         console.error('初始化失敗:', error);
                         localStorage.removeItem('admin_token');
@@ -378,6 +462,63 @@
                         minute: '2-digit',
                         second: '2-digit'
                     });
+                },
+
+                async loadConfig() {
+                    try {
+                        const token = localStorage.getItem('admin_token');
+                        const response = await fetch('/admin/mcp/config', {
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            this.config = data.config;
+                            this.error = '';
+                        } else {
+                            this.error = data.error || '載入 MCP 配置失敗';
+                        }
+                    } catch (error) {
+                        console.error('載入 MCP 配置失敗:', error);
+                        this.error = '載入 MCP 配置時發生錯誤';
+                    }
+                },
+
+                async updateConfig() {
+                    this.updating = true;
+                    this.error = '';
+                    this.success = '';
+
+                    try {
+                        const token = localStorage.getItem('admin_token');
+                        const response = await fetch('/admin/mcp/config', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(this.config)
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            this.success = data.message;
+                            this.config = data.config;
+                            // 重新載入狀態以反映配置變更
+                            await this.loadStatus();
+                        } else {
+                            this.error = data.error || 'MCP 配置更新失敗';
+                        }
+                    } catch (error) {
+                        console.error('MCP 配置更新失敗:', error);
+                        this.error = 'MCP 配置更新時發生錯誤';
+                    } finally {
+                        this.updating = false;
+                    }
                 },
 
                 logout() {
