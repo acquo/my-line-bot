@@ -31,7 +31,7 @@
 		"binding": "AI"
 	},
 	"vars": {
-		"ENVIRONMENT": "development"
+		"ENVIRONMENT": "production"
 	}
 	/**
 	 * Smart Placement

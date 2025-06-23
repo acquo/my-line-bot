@@ -2,6 +2,7 @@
 
 import { Hono } from 'hono';
 import { StorageService } from '../services/storage';
+import { DatabaseService } from '../services/database';
 import { authMiddleware } from './auth';
 import type { UpdateSettingsRequest } from '../types/settings';
 import { SUPPORTED_MODELS } from '../types/settings';
@@ -108,6 +109,36 @@ export function createAdminHandler() {
       return c.json({
         success: false,
         error: '無法更新密碼'
+      }, 500);
+    }
+  });
+
+  // GET /admin/traces - 取得 Webhook 追蹤記錄
+  app.get('/traces', authMiddleware(), async (c) => {
+    try {
+      const { DB } = c.env;
+      const databaseService = new DatabaseService(DB);
+
+      const limit = parseInt(c.req.query('limit') || '10');
+      const traces = await databaseService.getRecentWebhookTraces(Math.min(limit, 50));
+
+      return c.json({
+        success: true,
+        traces: traces.map(trace => ({
+          id: trace.id,
+          userId: trace.user_id,
+          eventType: trace.event_type,
+          messageContent: trace.message_content,
+          timestamp: trace.timestamp,
+          rawEvent: trace.raw_event ? JSON.parse(trace.raw_event) : null
+        }))
+      });
+
+    } catch (error) {
+      console.error('取得追蹤記錄失敗:', error);
+      return c.json({
+        success: false,
+        error: '無法取得追蹤記錄'
       }, 500);
     }
   });

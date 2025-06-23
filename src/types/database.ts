@@ -32,3 +32,22 @@ export interface AIRequest {
   max_tokens?: number;
   temperature?: number;
 }
+
+// Webhook Trace 相關型別
+export interface WebhookTraceRecord {
+  id?: number;
+  user_id?: string;
+  event_type: string;
+  message_content?: string;
+  timestamp?: string;
+  raw_event?: string;
+}
+
+export interface DatabaseWebhookTrace {
+  id: number;
+  user_id: string | null;
+  event_type: string;
+  message_content: string | null;
+  timestamp: string;
+  raw_event: string | null;
+}

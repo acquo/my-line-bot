@@ -1,6 +1,6 @@
 // 資料庫操作服務
 
-import type { ConversationRecord, DatabaseConversation } from '../types/database';
+import type { ConversationRecord, DatabaseConversation, WebhookTraceRecord, DatabaseWebhookTrace } from '../types/database';
 
 export class DatabaseService {
   constructor(private db: D1Database) {}
@@ -85,6 +85,61 @@ export class DatabaseService {
     } catch (error) {
       console.error('取得用戶統計失敗:', error);
       return { totalMessages: 0, lastActivity: null };
+    }
+  }
+
+  /**
+   * 儲存 Webhook 追蹤記錄
+   */
+  async saveWebhookTrace(record: WebhookTraceRecord): Promise<void> {
+    try {
+      await this.db
+        .prepare(
+          'INSERT INTO webhook_traces (user_id, event_type, message_content, raw_event) VALUES (?, ?, ?, ?)'
+        )
+        .bind(record.user_id || null, record.event_type, record.message_content || null, record.raw_event || null)
+        .run();
+    } catch (error) {
+      console.error('儲存 Webhook 追蹤記錄失敗:', error);
+      // 不拋出錯誤，避免影響主要功能
+    }
+  }
+
+  /**
+   * 取得最新的 Webhook 追蹤記錄
+   */
+  async getRecentWebhookTraces(limit: number = 10): Promise<DatabaseWebhookTrace[]> {
+    try {
+      const result = await this.db
+        .prepare(
+          'SELECT * FROM webhook_traces ORDER BY timestamp DESC LIMIT ?'
+        )
+        .bind(limit)
+        .all();
+
+      return result.results as DatabaseWebhookTrace[];
+    } catch (error) {
+      console.error('取得 Webhook 追蹤記錄失敗:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 清理舊的 Webhook 追蹤記錄
+   */
+  async cleanupOldWebhookTraces(daysToKeep: number = 7): Promise<void> {
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+
+      await this.db
+        .prepare(
+          'DELETE FROM webhook_traces WHERE timestamp < ?'
+        )
+        .bind(cutoffDate.toISOString())
+        .run();
+    } catch (error) {
+      console.error('清理舊 Webhook 追蹤記錄失敗:', error);
     }
   }
 }

@@ -14,5 +14,5 @@ CREATE INDEX IF NOT EXISTS idx_conversations_user_timestamp
 ON conversations(user_id, timestamp DESC);
 
 -- 建立索引以支援清理舊資料
-CREATE INDEX IF NOT EXISTS idx_conversations_timestamp 
+CREATE INDEX IF NOT EXISTS idx_conversations_timestamp
 ON conversations(timestamp);

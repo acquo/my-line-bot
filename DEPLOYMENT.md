@@ -176,6 +176,36 @@ wrangler d1 execute line-bot-db --env production --command "SELECT * FROM conver
 - [LINE Messaging API 文件](https://developers.line.biz/en/docs/messaging-api/)
 - [Hono 框架文件](https://hono.dev/)
 
+## 🔍 新功能：Webhook 追蹤調試
+
+### Trace 功能概述
+最新版本新增了 Webhook 事件追蹤功能，用於監控和調試 LINE Bot 的運行狀況。
+
+### 功能特色
+- **事件記錄**: 自動記錄所有 LINE Webhook 事件
+- **管理界面**: 專用的 Trace 頁面展示最新事件
+- **詳細資訊**: 查看完整的事件 JSON 資料
+- **安全控制**: 需要管理員認證才能訪問
+
+### 使用方法
+1. 訪問管理後台：`https://your-worker-name.your-subdomain.workers.dev/admin/login.html`
+2. 登入後點擊導航欄的 "Trace" 連結
+3. 查看最新的 Webhook 事件記錄
+4. 點擊 "詳細" 按鈕查看完整事件資料
+
+### 資料庫結構
+新增了 `webhook_traces` 表來儲存追蹤資料：
+```sql
+CREATE TABLE webhook_traces (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT,
+  event_type TEXT NOT NULL,
+  message_content TEXT,
+  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+  raw_event TEXT
+);
+```
+
 ## 📊 效能最佳化
 
 1. **快取策略**
@@ -185,7 +215,13 @@ wrangler d1 execute line-bot-db --env production --command "SELECT * FROM conver
 2. **資料庫最佳化**
    - 定期清理舊資料
    - 適當的索引設計
+   - Webhook 追蹤記錄自動清理（保留 7 天）
 
 3. **AI 使用最佳化**
    - 限制對話歷史長度
    - 設定合理的回應長度限制
+
+4. **追蹤功能最佳化**
+   - 異步處理，不影響主要功能
+   - 索引優化提升查詢效能
+   - 自動清理機制避免資料膨脹

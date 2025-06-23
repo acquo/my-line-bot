@@ -64,6 +64,13 @@ export function createWebhookHandler() {
 
       // 使用 waitUntil 異步處理每個事件
       for (const event of webhookBody.events) {
+        // 記錄 Webhook 追蹤資訊（異步，不影響主流程）
+        c.executionCtx.waitUntil(
+          recordWebhookTrace(event, dbService).catch(error => {
+            console.error('記錄 Webhook 追蹤失敗:', error);
+          })
+        );
+
         c.executionCtx.waitUntil(
           handleLineEvent(event, {
             dbService,
@@ -87,6 +94,27 @@ export function createWebhookHandler() {
   });
 
   return app;
+}
+
+/**
+ * 記錄 Webhook 追蹤資訊
+ */
+async function recordWebhookTrace(
+  event: LineWebhookEvent,
+  dbService: DatabaseService
+): Promise<void> {
+  try {
+    const traceRecord = {
+      user_id: event.source?.userId || undefined,
+      event_type: event.type,
+      message_content: event.message?.text || undefined,
+      raw_event: JSON.stringify(event)
+    };
+
+    await dbService.saveWebhookTrace(traceRecord);
+  } catch (error) {
+    console.error('記錄 Webhook 追蹤失敗:', error);
+  }
 }
 
 /**
