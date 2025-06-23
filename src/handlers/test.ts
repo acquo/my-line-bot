@@ -3,6 +3,7 @@
 import { Hono } from 'hono';
 import { DatabaseService } from '../services/database';
 import { StorageService } from '../services/storage';
+import { AIService } from '../services/ai';
 
 export function createTestHandler() {
   const app = new Hono<{ Bindings: CloudflareBindings }>();
@@ -164,6 +165,82 @@ export function createTestHandler() {
 
     } catch (error) {
       console.error('Webhook 追蹤測試失敗:', error);
+      return c.json({
+        success: false,
+        error: error instanceof Error ? error.message : '未知錯誤'
+      }, 500);
+    }
+  });
+
+  // POST /test/mcp - 測試 MCP 功能
+  app.post('/mcp', async (c) => {
+    try {
+      const { AI } = c.env;
+      const aiService = new AIService(AI);
+
+      const { query } = await c.req.json().catch(() => ({ query: 'test' }));
+
+      console.log('開始測試 MCP 功能，查詢:', query);
+
+      // 測試 MCP 連接和功能
+      const testResult = await aiService.testMCP(query);
+
+      // 獲取連接狀態和統計
+      const status = aiService.getMCPConnectionStatus();
+      const stats = aiService.getMCPStats();
+
+      return c.json({
+        success: true,
+        message: 'MCP 測試完成',
+        testResult,
+        status,
+        stats
+      });
+
+    } catch (error) {
+      console.error('MCP 測試失敗:', error);
+      return c.json({
+        success: false,
+        error: error instanceof Error ? error.message : '未知錯誤'
+      }, 500);
+    }
+  });
+
+  // POST /test/mcp-ai - 測試 MCP 整合的 AI 回應
+  app.post('/mcp-ai', async (c) => {
+    try {
+      const { AI, DB, KV } = c.env;
+      const aiService = new AIService(AI);
+      const databaseService = new DatabaseService(DB);
+      const storageService = new StorageService(KV);
+
+      const { message } = await c.req.json().catch(() => ({ message: '測試 MCP 整合功能' }));
+
+      console.log('開始測試 MCP 整合的 AI 回應，訊息:', message);
+
+      // 獲取系統設定
+      const settings = await storageService.getGlobalSettings();
+
+      // 模擬對話歷史
+      const conversationHistory = await databaseService.getUserConversations('test-mcp-user', 5);
+
+      // 生成包含 MCP 上下文的 AI 回應
+      const aiResponse = await aiService.generateResponse(message, conversationHistory, settings);
+
+      // 獲取 MCP 狀態
+      const mcpStatus = aiService.getMCPConnectionStatus();
+
+      return c.json({
+        success: true,
+        message: 'MCP 整合 AI 測試完成',
+        userMessage: message,
+        aiResponse,
+        mcpStatus,
+        responseLength: aiResponse.length
+      });
+
+    } catch (error) {
+      console.error('MCP 整合 AI 測試失敗:', error);
       return c.json({
         success: false,
         error: error instanceof Error ? error.message : '未知錯誤'

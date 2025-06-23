@@ -3,6 +3,7 @@
 import { Hono } from 'hono';
 import { StorageService } from '../services/storage';
 import { DatabaseService } from '../services/database';
+import { AIService } from '../services/ai';
 import { authMiddleware } from './auth';
 import type { UpdateSettingsRequest } from '../types/settings';
 import { SUPPORTED_MODELS } from '../types/settings';
@@ -139,6 +140,101 @@ export function createAdminHandler() {
       return c.json({
         success: false,
         error: '無法取得追蹤記錄'
+      }, 500);
+    }
+  });
+
+  // GET /admin/mcp/status - 取得 MCP 連接狀態
+  app.get('/mcp/status', authMiddleware(), async (c) => {
+    try {
+      const { AI } = c.env;
+      const aiService = new AIService(AI);
+
+      const status = aiService.getMCPConnectionStatus();
+      const stats = aiService.getMCPStats();
+
+      return c.json({
+        success: true,
+        status,
+        stats
+      });
+
+    } catch (error) {
+      console.error('取得 MCP 狀態失敗:', error);
+      return c.json({
+        success: false,
+        error: '無法取得 MCP 狀態'
+      }, 500);
+    }
+  });
+
+  // POST /admin/mcp/connect - 手動連接 MCP Server
+  app.post('/mcp/connect', authMiddleware(), async (c) => {
+    try {
+      const { AI } = c.env;
+      const aiService = new AIService(AI);
+
+      const success = await aiService.connectToMCP();
+
+      return c.json({
+        success,
+        message: success ? 'MCP 連接成功' : 'MCP 連接失敗'
+      });
+
+    } catch (error) {
+      console.error('MCP 連接失敗:', error);
+      return c.json({
+        success: false,
+        error: '無法連接到 MCP Server'
+      }, 500);
+    }
+  });
+
+  // POST /admin/mcp/disconnect - 斷開 MCP 連接
+  app.post('/mcp/disconnect', authMiddleware(), async (c) => {
+    try {
+      const { AI } = c.env;
+      const aiService = new AIService(AI);
+
+      aiService.disconnectMCP();
+
+      return c.json({
+        success: true,
+        message: 'MCP 連接已斷開'
+      });
+
+    } catch (error) {
+      console.error('MCP 斷開失敗:', error);
+      return c.json({
+        success: false,
+        error: '無法斷開 MCP 連接'
+      }, 500);
+    }
+  });
+
+  // POST /admin/mcp/test - 測試 MCP 功能
+  app.post('/mcp/test', authMiddleware(), async (c) => {
+    try {
+      const { AI } = c.env;
+      const aiService = new AIService(AI);
+
+      const { query } = await c.req.json().catch(() => ({ query: 'test' }));
+      const result = await aiService.testMCP(query);
+
+      return c.json({
+        success: result.success,
+        contexts: result.contexts,
+        error: result.error,
+        message: result.success ?
+          `測試成功，獲取到 ${result.contexts.length} 個上下文項目` :
+          '測試失敗'
+      });
+
+    } catch (error) {
+      console.error('MCP 測試失敗:', error);
+      return c.json({
+        success: false,
+        error: '無法測試 MCP 功能'
       }, 500);
     }
   });
